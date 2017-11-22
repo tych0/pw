@@ -1,0 +1,10 @@
+[package]
+name = "pw"
+version = "0.0.1"
+authors = ["Tycho Andersen <tycho@tycho.ws>"]
+
+[dependencies]
+base64 = "0.6"
+clap = "2"
+ring = "0.12"
+rpassword = "2"
