@@ -16,7 +16,6 @@ horse battery staple"](https://xkcd.com/936/) is only 44.
 ## TODO
 
 * option to generate a password based on a reset period
-* option to generate the nth password, like an OTP
 * config file to store reset period/nth password/special character state
 * keyring support for actual password
 * copy stuff to the X clipboard on request

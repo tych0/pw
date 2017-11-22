@@ -33,13 +33,23 @@ fn main() {
             "The length of the password to be generated")
         (@arg special: -s --special +takes_value min_values(0)
             "Special characters to use, if any")
+        (@arg otp: -o --otp +takes_value
+            "The OTP offset to use")
+
     ).get_matches();
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
     let pass = rpassword::prompt_password_stdout("Password: ").unwrap();
     let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
 
-    pbkdf2::derive(&digest::SHA256, 10000, entity, pass.as_bytes(), &mut raw);
+    let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);
+    /*
+     * 10,000 iterations recommended by NIST, plus 10 iterations for each otp
+     * offset.
+     */
+    let iterations = 10 * 1000 + otp * 10;
+
+    pbkdf2::derive(&digest::SHA256, iterations, entity, pass.as_bytes(), &mut raw);
 
     let length = value_t!(matches.value_of("length"), u32).unwrap();
 
