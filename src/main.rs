@@ -16,7 +16,8 @@ fn main() {
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
         (@arg ENTITY: +required "The entity to generate the password for")
-        (@arg length: -l --length +takes_value "The length of the password to be generated")
+        (@arg length: -l --length +takes_value default_value("10")
+            "The length of the password to be generated")
     ).get_matches();
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
@@ -25,7 +26,7 @@ fn main() {
 
     pbkdf2::derive(&digest::SHA256, 10000, entity, pass.as_bytes(), &mut raw);
 
-    let length = value_t!(matches.value_of("length"), u32).unwrap_or(10);
+    let length = value_t!(matches.value_of("length"), u32).unwrap();
 
     println!("{}", generate(raw, length));
 }
