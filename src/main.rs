@@ -46,10 +46,13 @@ fn main() {
             "Reset period (in days)")
         (@arg date: -d --date +takes_value
             "Date to compute the reset period from (2017-11-22 format)")
+        (@arg quiet: -q --quiet
+            "Whether or not to prompt when getting the password from stdin")
     ).get_matches();
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
-    let pass = rpassword::prompt_password_stdout("Password: ").unwrap();
+    let prompt = if matches.is_present("quiet") { "" } else { "Password: " };
+    let pass = rpassword::prompt_password_stdout(prompt).unwrap();
     let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
 
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);
