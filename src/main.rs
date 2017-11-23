@@ -58,9 +58,7 @@ fn main() {
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);
     let reset = value_t!(matches.value_of("period"), u32).ok();
     let date = matches.value_of("date");
-    let offset = get_reset_offset(reset, date);
-
-    let _ = offset.map_err(|e| {
+    let offset = get_reset_offset(reset, date).unwrap_or_else(|e| {
         eprintln!("bad date: {}", e);
         std::process::exit(1)
     });
@@ -69,7 +67,7 @@ fn main() {
      * 10,000 iterations recommended by NIST, plus 10 iterations for each otp
      * offset, and 10 for the reset offset
      */
-    let iterations = 10 * 1000 + otp * 10 + offset.unwrap() * 10;
+    let iterations = 10 * 1000 + otp * 10 + offset * 10;
     pbkdf2::derive(&digest::SHA256, iterations, entity, pass.as_bytes(), &mut raw);
 
     let length = value_t!(matches.value_of("length"), u32).unwrap();
