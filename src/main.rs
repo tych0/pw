@@ -103,7 +103,7 @@ fn main() {
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
-        (@arg ENTITY: conflicts_with[set_password delete_password]
+        (@arg ENTITY: conflicts_with[set_password get_password delete_password]
             "The entity to generate the password for")
         (@arg length: -l --length +takes_value default_value("10")
             "The length of the password to be generated")
@@ -123,6 +123,8 @@ fn main() {
             "User to query the keyring for, if not the current user.")
         (@arg set_password: --("set-keyring-password")
             "Sets the keyring password for use by pw")
+        (@arg get_password: --("get-keyring-password")
+            "Gets the keyring password used by pw")
         (@arg delete_password: --("delete-keyring-password")
             "Clears the keyring password")
     ).get_matches();
@@ -139,13 +141,22 @@ fn main() {
         return;
     }
 
-    let entity = matches.value_of("ENTITY").unwrap().as_bytes();
     let prompt = if matches.is_present("quiet") {
         ""
     } else {
         "Password: "
     };
     let pass = get_password(prompt, user).expect("couldn't get password");
+    if matches.is_present("get_password") {
+        println!("{}", pass);
+        if matches.is_present("clipboard") && !copy_to_clipboard(pass.as_str()) {
+            eprintln!("Problem setting X clipboard");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    let entity = matches.value_of("ENTITY").unwrap().as_bytes();
     let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
 
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);
