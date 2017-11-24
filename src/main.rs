@@ -6,6 +6,8 @@ extern crate rpassword;
 extern crate time;
 
 use ring::{digest, pbkdf2};
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 fn generate(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> String {
     return base64::encode(&bytes).chars().take(length as usize).collect::<String>()
@@ -48,6 +50,8 @@ fn main() {
             "Date to compute the reset period from (2017-11-22 format)")
         (@arg quiet: -q --quiet
             "Whether or not to prompt when getting the password from stdin")
+        (@arg clipboard: -c --clipboard
+            "Copy the password to the clipboard")
     ).get_matches();
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
@@ -84,4 +88,30 @@ fn main() {
     }
 
     println!("{}", result);
+
+    if matches.is_present("clipboard") {
+        /*
+         * Note: we use xclip here, instead of some implementation using xlib directly, because the
+         * clipboard only lives for the length of time of the process. xclip has code to manage
+         * this, forking a child and then owning the clipboard until something else takes over it.
+         * We could use xlib directly, but that would force us to either develop this ownership
+         * code or have users all run a clipboard manager. For now, let's just use xclip.
+         */
+
+        let mut xclip = Command::new("xclip")
+                                 .arg("-i")
+                                 .stdin(Stdio::piped())
+                                 .stdout(Stdio::null())
+                                 .stderr(Stdio::null())
+                                 .spawn()
+                                 .expect("xclip missing");
+        xclip.stdin.as_mut()
+                   .unwrap()
+                   .write_all(result.as_bytes())
+                   .expect("failed writing password to xclip");
+        if !xclip.wait().map(|e| e.success()).unwrap_or(true) {
+            eprintln!("Problem setting X clipboard");
+            std::process::exit(1)
+        }
+    }
 }
