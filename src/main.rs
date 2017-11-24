@@ -73,6 +73,31 @@ fn delete_password(user: &str) -> keyring::Result<()> {
     keyring.delete_password()
 }
 
+fn copy_to_clipboard(data: &str) -> bool {
+    /*
+     * Note: we use xclip here, instead of some implementation using xlib directly, because the
+     * clipboard only lives for the length of time of the process. xclip has code to manage
+     * this, forking a child and then owning the clipboard until something else takes over it.
+     * We could use xlib directly, but that would force us to either develop this ownership
+     * code or have users all run a clipboard manager. For now, let's just use xclip.
+     */
+
+    let mut xclip = Command::new("xclip")
+        .arg("-i")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("xclip missing");
+    xclip
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(data.as_bytes())
+        .expect("failed writing password to xclip");
+    !xclip.wait().map(|e| e.success()).unwrap_or(true)
+}
+
 fn main() {
     let matches = clap_app!(pw =>
         (version: "1.0")
@@ -161,31 +186,8 @@ fn main() {
 
     println!("{}", result);
 
-    if matches.is_present("clipboard") {
-        /*
-         * Note: we use xclip here, instead of some implementation using xlib directly, because the
-         * clipboard only lives for the length of time of the process. xclip has code to manage
-         * this, forking a child and then owning the clipboard until something else takes over it.
-         * We could use xlib directly, but that would force us to either develop this ownership
-         * code or have users all run a clipboard manager. For now, let's just use xclip.
-         */
-
-        let mut xclip = Command::new("xclip")
-            .arg("-i")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .expect("xclip missing");
-        xclip
-            .stdin
-            .as_mut()
-            .unwrap()
-            .write_all(result.as_bytes())
-            .expect("failed writing password to xclip");
-        if !xclip.wait().map(|e| e.success()).unwrap_or(true) {
-            eprintln!("Problem setting X clipboard");
-            std::process::exit(1)
-        }
+    if matches.is_present("clipboard") && !copy_to_clipboard(result.as_str()) {
+        eprintln!("Problem setting X clipboard");
+        std::process::exit(1)
     }
 }
