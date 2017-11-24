@@ -8,7 +8,7 @@ matrix:
         - rust: nightly
 cache: cargo
 before_script:
-    - cargo install rustfmt
+    - which rustfmt || cargo install rustfmt
 script:
     - rustfmt src/* && git diff --quiet
     - ./test.sh
