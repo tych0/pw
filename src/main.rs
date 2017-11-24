@@ -17,13 +17,15 @@
 extern crate base64;
 #[macro_use]
 extern crate clap;
+extern crate keyring;
 extern crate ring;
 extern crate rpassword;
 extern crate time;
 
-use ring::{digest, pbkdf2};
 use std::io::Write;
 use std::process::{Command, Stdio};
+
+use ring::{digest, pbkdf2};
 
 fn generate(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> String {
     return base64::encode(&bytes)
@@ -50,12 +52,34 @@ fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time
     return days.map(|ds| period.map_or(0, |p| ds as u32 / p));
 }
 
+fn get_password(prompt: &str, user: &str) -> std::io::Result<String> {
+    let keyring = keyring::Keyring::new("pw", user);
+    keyring.get_password().or_else(|_| rpassword::prompt_password_stdout(prompt))
+}
+
+fn set_password(user: &str) -> std::result::Result<(), String> {
+    let keyring = keyring::Keyring::new("pw", user);
+    let pass = rpassword::prompt_password_stdout("Password: ");
+    pass
+        .map_err(|e| e.to_string())
+        .and_then(|p|{
+            let result = keyring.set_password(p.as_str());
+            result.map_err(|e| e.to_string())
+        })
+}
+
+fn delete_password(user: &str) -> keyring::Result<()> {
+    let keyring = keyring::Keyring::new("pw", user);
+    keyring.delete_password()
+}
+
 fn main() {
     let matches = clap_app!(pw =>
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
-        (@arg ENTITY: +required "The entity to generate the password for")
+        (@arg ENTITY: conflicts_with[set_password delete_password]
+            "The entity to generate the password for")
         (@arg length: -l --length +takes_value default_value("10")
             "The length of the password to be generated")
         (@arg special: -s --special +takes_value min_values(0)
@@ -70,7 +94,25 @@ fn main() {
             "Whether or not to prompt when getting the password from stdin")
         (@arg clipboard: -c --clipboard
             "Copy the password to the clipboard")
+        (@arg user: -u --user
+            "User to query the keyring for, if not the current user.")
+        (@arg set_password: --("set-keyring-password")
+            "Sets the keyring password for use by pw")
+        (@arg delete_password: --("delete-keyring-password")
+            "Clears the keyring password")
     ).get_matches();
+
+    let cur_user = std::env::var("USER").expect("couldn't get current user");
+    let user = matches.value_of("user").unwrap_or(cur_user.as_str());
+    if matches.is_present("delete_password") {
+        delete_password(user).expect("couldn't delete keyring password");
+        return
+    }
+
+    if matches.is_present("set_password") {
+        set_password(user).expect("couldn't set keyring password");
+        return
+    }
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
     let prompt = if matches.is_present("quiet") {
@@ -78,7 +120,7 @@ fn main() {
     } else {
         "Password: "
     };
-    let pass = rpassword::prompt_password_stdout(prompt).unwrap();
+    let pass = get_password(prompt, user).expect("couldn't get password");
     let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
 
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);

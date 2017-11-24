@@ -4,6 +4,10 @@
 several options to encode passwords to satisfy several common password
 requirements.
 
+## Dependencies
+
+* `dbus` on Linux (`libdbus-1-dev` on Ubuntu)
+
 ## Crypto
 
 `pw` uses `pbkdf2` with `sha256` to stretch your password, with the supplied
@@ -16,4 +20,3 @@ horse battery staple"](https://xkcd.com/936/) is only 44.
 ## TODO
 
 * config file to store reset period/nth password/special character state
-* keyring support for actual password
