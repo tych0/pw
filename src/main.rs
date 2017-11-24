@@ -54,18 +54,18 @@ fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time
 
 fn get_password(prompt: &str, user: &str) -> std::io::Result<String> {
     let keyring = keyring::Keyring::new("pw", user);
-    keyring.get_password().or_else(|_| rpassword::prompt_password_stdout(prompt))
+    keyring.get_password().or_else(|_| {
+        rpassword::prompt_password_stdout(prompt)
+    })
 }
 
 fn set_password(user: &str) -> std::result::Result<(), String> {
     let keyring = keyring::Keyring::new("pw", user);
     let pass = rpassword::prompt_password_stdout("Password: ");
-    pass
-        .map_err(|e| e.to_string())
-        .and_then(|p|{
-            let result = keyring.set_password(p.as_str());
-            result.map_err(|e| e.to_string())
-        })
+    pass.map_err(|e| e.to_string()).and_then(|p| {
+        let result = keyring.set_password(p.as_str());
+        result.map_err(|e| e.to_string())
+    })
 }
 
 fn delete_password(user: &str) -> keyring::Result<()> {
@@ -106,12 +106,12 @@ fn main() {
     let user = matches.value_of("user").unwrap_or(cur_user.as_str());
     if matches.is_present("delete_password") {
         delete_password(user).expect("couldn't delete keyring password");
-        return
+        return;
     }
 
     if matches.is_present("set_password") {
         set_password(user).expect("couldn't set keyring password");
-        return
+        return;
     }
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
