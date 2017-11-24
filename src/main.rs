@@ -26,26 +26,28 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 fn generate(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> String {
-    return base64::encode(&bytes).chars().take(length as usize).collect::<String>()
+    return base64::encode(&bytes)
+        .chars()
+        .take(length as usize)
+        .collect::<String>();
 }
 
 fn get_next_byte(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> u8 {
     /* Since we base64 encode stuff, we skip 6 bits (2**6 == 64) per length */
-    return bytes[((length as usize * 6) / 8) + 1]
+    return bytes[((length as usize * 6) / 8) + 1];
 }
 
-fn get_special(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32,
-               special: &str) -> char {
+fn get_special(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32, special: &str) -> char {
 
     /* we reserve the byte after length */
     let offset = get_next_byte(bytes, length) as usize % special.len();
-    return special.chars().nth(offset).unwrap()
+    return special.chars().nth(offset).unwrap();
 }
 
 fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time::ParseError> {
     let days = date.map_or(Ok(time::now()), |d| time::strptime(d, "%Y-%m-%d"))
-                   .map(|d| d.to_timespec().sec / (24 * 60 * 60));
-    return days.map(|ds| period.map_or(0, |p| ds as u32 / p))
+        .map(|d| d.to_timespec().sec / (24 * 60 * 60));
+    return days.map(|ds| period.map_or(0, |p| ds as u32 / p));
 }
 
 fn main() {
@@ -71,7 +73,11 @@ fn main() {
     ).get_matches();
 
     let entity = matches.value_of("ENTITY").unwrap().as_bytes();
-    let prompt = if matches.is_present("quiet") { "" } else { "Password: " };
+    let prompt = if matches.is_present("quiet") {
+        ""
+    } else {
+        "Password: "
+    };
     let pass = rpassword::prompt_password_stdout(prompt).unwrap();
     let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
 
@@ -88,7 +94,13 @@ fn main() {
      * offset, and 10 for the reset offset
      */
     let iterations = 10 * 1000 + otp * 10 + offset * 10;
-    pbkdf2::derive(&digest::SHA256, iterations, entity, pass.as_bytes(), &mut raw);
+    pbkdf2::derive(
+        &digest::SHA256,
+        iterations,
+        entity,
+        pass.as_bytes(),
+        &mut raw,
+    );
 
     let length = value_t!(matches.value_of("length"), u32).unwrap();
     let mut result = generate(raw, length);
@@ -98,7 +110,9 @@ fn main() {
          * We specify the default value here instead of above, because this way
          * passing -s without any values is allowed
          */
-        let special = matches.value_of("special").unwrap_or("!#$%()*+,-.:;=?@[\\]^_{|}~");
+        let special = matches.value_of("special").unwrap_or(
+            "!#$%()*+,-.:;=?@[\\]^_{|}~",
+        );
         result = result.get(1..).unwrap().to_string();
         result.push_str(&get_special(raw, length, special).to_string());
     }
@@ -115,16 +129,18 @@ fn main() {
          */
 
         let mut xclip = Command::new("xclip")
-                                 .arg("-i")
-                                 .stdin(Stdio::piped())
-                                 .stdout(Stdio::null())
-                                 .stderr(Stdio::null())
-                                 .spawn()
-                                 .expect("xclip missing");
-        xclip.stdin.as_mut()
-                   .unwrap()
-                   .write_all(result.as_bytes())
-                   .expect("failed writing password to xclip");
+            .arg("-i")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("xclip missing");
+        xclip
+            .stdin
+            .as_mut()
+            .unwrap()
+            .write_all(result.as_bytes())
+            .expect("failed writing password to xclip");
         if !xclip.wait().map(|e| e.success()).unwrap_or(true) {
             eprintln!("Problem setting X clipboard");
             std::process::exit(1)
