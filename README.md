@@ -1,4 +1,4 @@
-# pw [![Build Status](https://api.travis-ci.org/tych0/pw.svg?branch=master)](https://api.travis-ci.org/tych0/pw.svg?branch=master)
+# pw [![Build Status](https://api.travis-ci.org/tych0/pw.svg?branch=master)](https://travis-ci.org/tych0/xcffib)
 
 `pw` generates passswords statelessly, much like a brain wallet. `pw` also has
 several options to encode passwords to satisfy several common password
