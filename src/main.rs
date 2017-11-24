@@ -102,7 +102,7 @@ fn main() {
         &mut raw,
     );
 
-    let length = value_t!(matches.value_of("length"), u32).unwrap();
+    let length = value_t_or_exit!(matches.value_of("length"), u32);
     let mut result = generate(raw, length);
 
     if matches.is_present("special") {
