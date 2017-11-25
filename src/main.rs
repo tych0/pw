@@ -103,7 +103,7 @@ fn main() {
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
-        (@arg ENTITY: conflicts_with[set_password get_password delete_password]
+        (@arg ENTITY: +required conflicts_with[set_password get_password delete_password]
             "The entity to generate the password for")
         (@arg length: -l --length +takes_value default_value("10")
             "The length of the password to be generated")
