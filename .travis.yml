@@ -14,4 +14,4 @@ before_script:
     - which rustfmt || cargo install rustfmt
 script:
     - rustfmt src/* && git diff --quiet
-    - ./test.sh
+    - cd test && ./test.sh

@@ -6,7 +6,10 @@ authors = ["Tycho Andersen <tycho@tycho.ws>"]
 [dependencies]
 base64 = "0.6"
 clap = "2"
+config = "0.6"
 keyring = "0.5"
 ring = "0.12"
 rpassword = "2"
+serde = "1"
+serde_derive = "1"
 time = "0.1"

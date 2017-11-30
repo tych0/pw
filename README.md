@@ -19,4 +19,4 @@ horse battery staple"](https://xkcd.com/936/) is only 44.
 
 ## TODO
 
-* config file to store reset period/nth password/special character state
+* use a better key stretching algorithm (HKDF?)

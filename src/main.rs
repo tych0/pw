@@ -17,11 +17,15 @@
 extern crate base64;
 #[macro_use]
 extern crate clap;
+extern crate config;
 extern crate keyring;
 extern crate ring;
 extern crate rpassword;
+#[macro_use]
+extern crate serde_derive;
 extern crate time;
 
+use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -39,7 +43,7 @@ fn get_next_byte(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> u8 {
     return bytes[((length as usize * 6) / 8) + 1];
 }
 
-fn get_special(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32, special: &str) -> char {
+fn get_special(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32, special: String) -> char {
 
     /* we reserve the byte after length */
     let offset = get_next_byte(bytes, length) as usize % special.len();
@@ -98,14 +102,41 @@ fn copy_to_clipboard(data: &str) -> bool {
     !xclip.wait().map(|e| e.success()).unwrap_or(true)
 }
 
+#[derive(Clone, Default, Debug, Deserialize)]
+struct Domain {
+    length: Option<u32>,
+    special: Option<String>,
+    otp: Option<u32>,
+    period: Option<u32>,
+    user: Option<String>,
+}
+
+fn get_config(file: &str, entity: String) -> Result<Domain, config::ConfigError> {
+    let mut c = config::Config::new();
+    let err = c.merge(config::File::with_name(file)).err();
+    match err {
+        Some(config::ConfigError::Foreign(_)) => return Ok(Default::default()),
+        Some(e) => return Err(e),
+        None => (),
+    }
+    let map = c.deserialize::<HashMap<String, Domain>>();
+    map.map(|m| {
+        m.get(&entity).map(|d| d.clone()).unwrap_or(
+            Default::default(),
+        )
+    })
+}
+
 fn main() {
+    let home = std::env::var("HOME").expect("No home directory?");
+    let def_config_path = format!("{}/.config/pw.toml", home);
     let matches = clap_app!(pw =>
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
         (@arg ENTITY: +required conflicts_with[set_password get_password delete_password]
             "The entity to generate the password for")
-        (@arg length: -l --length +takes_value default_value("10")
+        (@arg length: -l --length +takes_value
             "The length of the password to be generated")
         (@arg special: -s --special +takes_value min_values(0)
             "Special characters to use, if any")
@@ -127,6 +158,8 @@ fn main() {
             "Gets the keyring password used by pw")
         (@arg delete_password: --("delete-keyring-password")
             "Clears the keyring password")
+        (@arg config: -f --("config-file") default_value(def_config_path.as_str())
+            "The config file to use")
     ).get_matches();
 
     let cur_user = std::env::var("USER").expect("couldn't get current user");
@@ -156,13 +189,20 @@ fn main() {
         return;
     }
 
-    let entity = matches.value_of("ENTITY").unwrap().as_bytes();
-    let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
+    let entity = matches.value_of("ENTITY").unwrap();
+    let config_file = matches.value_of("config").unwrap();
+    let config = get_config(config_file, entity.to_string()).unwrap_or_else(|e| {
+        eprintln!("bad config: {}", e);
+        std::process::exit(1)
+    });
 
-    let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(0);
-    let reset = value_t!(matches.value_of("period"), u32).ok();
+    let length = value_t!(matches.value_of("length"), u32).unwrap_or(config.length.unwrap_or(10));
+    let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(config.otp.unwrap_or(0));
+    let period = value_t!(matches.value_of("period"), u32).ok().or(
+        config.period,
+    );
     let date = matches.value_of("date");
-    let offset = get_reset_offset(reset, date).unwrap_or_else(|e| {
+    let offset = get_reset_offset(period, date).unwrap_or_else(|e| {
         eprintln!("bad date: {}", e);
         std::process::exit(1)
     });
@@ -172,28 +212,30 @@ fn main() {
      * offset, and 10 for the reset offset
      */
     let iterations = 10 * 1000 + otp * 10 + offset * 10;
+    let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
     pbkdf2::derive(
         &digest::SHA256,
         iterations,
-        entity,
+        entity.as_bytes(),
         pass.as_bytes(),
         &mut raw,
     );
 
-    let length = value_t_or_exit!(matches.value_of("length"), u32);
     let mut result = generate(raw, length);
 
-    if matches.is_present("special") {
-        /*
-         * We specify the default value here instead of above, because this way
-         * passing -s without any values is allowed
-         */
-        let special = matches.value_of("special").unwrap_or(
+    let special = if matches.is_present("special") {
+        let sps = matches.value_of("special").unwrap_or(
             "!#$%()*+,-.:;=?@[\\]^_{|}~",
         );
+        Some(sps.to_string())
+    } else {
+        config.special
+    };
+
+    special.map(|sps| {
         result = result.get(1..).unwrap().to_string();
-        result.push_str(&get_special(raw, length, special).to_string());
-    }
+        result.push_str(&get_special(raw, length, sps).to_string())
+    });
 
     println!("{}", result);
 

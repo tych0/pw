@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+export RUST_BACKTRACE=1
+
 function pw() {
     echo asdf | cargo run -- -q "$@"
 }
@@ -32,3 +34,7 @@ done
 
 # test -l -s
 [ "$(pw zomg -l 20 -s)" = "XU35wO56XLbISexn4pT{" ]
+
+# test otp config fallback
+[ "$(pw -f ./test.toml zomg)" = "Kr54O/5mh7" ]
+[ "$(pw -f ./test.toml zomg -o 2)" = "i24SkBFkm4" ]
