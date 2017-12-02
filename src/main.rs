@@ -19,6 +19,8 @@ extern crate base64;
 extern crate clap;
 extern crate config;
 extern crate keyring;
+#[macro_use]
+extern crate lazy_static;
 extern crate ring;
 extern crate rpassword;
 #[macro_use]
@@ -30,6 +32,13 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use ring::{digest, pbkdf2};
+
+lazy_static! {
+    static ref DEF_CONFIG_PATH: String = {
+        let home = std::env::var("HOME").expect("No home directory?");
+        format!("{}/.config/pw.toml", home)
+    };
+}
 
 fn generate(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> String {
     return base64::encode(&bytes)
@@ -115,7 +124,13 @@ fn get_config(file: &str, entity: String) -> Result<Domain, config::ConfigError>
     let mut c = config::Config::new();
     let err = c.merge(config::File::with_name(file)).err();
     match err {
-        Some(config::ConfigError::Foreign(_)) => return Ok(Default::default()),
+        Some(e @ config::ConfigError::Foreign(_)) => {
+            if file != DEF_CONFIG_PATH.as_str() {
+                eprintln!("{} {}", file, DEF_CONFIG_PATH.as_str());
+                return Err(e);
+            }
+            return Ok(Default::default());
+        }
         Some(e) => return Err(e),
         None => (),
     }
@@ -128,8 +143,6 @@ fn get_config(file: &str, entity: String) -> Result<Domain, config::ConfigError>
 }
 
 fn main() {
-    let home = std::env::var("HOME").expect("No home directory?");
-    let def_config_path = format!("{}/.config/pw.toml", home);
     let matches = clap_app!(pw =>
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
@@ -158,7 +171,7 @@ fn main() {
             "Gets the keyring password used by pw")
         (@arg delete_password: --("delete-keyring-password")
             "Clears the keyring password")
-        (@arg config: -f --("config-file") default_value(def_config_path.as_str())
+        (@arg config: -f --("config-file") default_value(DEF_CONFIG_PATH.as_str())
             "The config file to use")
         (@arg question: --question +takes_value
             "An optional security question for the domain")
