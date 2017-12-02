@@ -41,3 +41,6 @@ done
 
 # test --question
 [ "$(pw zomg --question "Do you like trees?")" = "H/zJqV24Gb" ]
+
+# test preshared config option
+[ "$(pw zomg -f ./preshared.toml)" = "o+uxxezJBT" ]

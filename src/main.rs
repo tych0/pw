@@ -118,6 +118,8 @@ struct Domain {
     otp: Option<u32>,
     period: Option<u32>,
     user: Option<String>,
+    // some optional base64 encoded pre-shared key materieal to add to the user supplied key.
+    preshared: Option<String>,
 }
 
 fn get_config(file: &str, entity: String) -> Result<Domain, config::ConfigError> {
@@ -194,7 +196,7 @@ fn main() {
     } else {
         "Password: "
     };
-    let pass = get_password(prompt, user).expect("couldn't get password");
+    let mut pass = get_password(prompt, user).expect("couldn't get password");
     if matches.is_present("get_password") {
         println!("{}", pass);
         if matches.is_present("clipboard") && !copy_to_clipboard(pass.as_str()) {
@@ -211,6 +213,8 @@ fn main() {
         eprintln!("bad config: {}", e);
         std::process::exit(1)
     });
+
+    config.preshared.map(|p| pass.push_str(p.as_str()));
 
     let length = value_t!(matches.value_of("length"), u32).unwrap_or(config.length.unwrap_or(10));
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(config.otp.unwrap_or(0));
