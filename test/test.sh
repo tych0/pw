@@ -38,3 +38,6 @@ done
 # test otp config fallback
 [ "$(pw -f ./test.toml zomg)" = "Kr54O/5mh7" ]
 [ "$(pw -f ./test.toml zomg -o 2)" = "i24SkBFkm4" ]
+
+# test --question
+[ "$(pw zomg --question "Do you like trees?")" = "H/zJqV24Gb" ]

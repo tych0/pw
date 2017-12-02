@@ -160,6 +160,8 @@ fn main() {
             "Clears the keyring password")
         (@arg config: -f --("config-file") default_value(def_config_path.as_str())
             "The config file to use")
+        (@arg question: --question +takes_value
+            "An optional security question for the domain")
     ).get_matches();
 
     let cur_user = std::env::var("USER").expect("couldn't get current user");
@@ -189,7 +191,8 @@ fn main() {
         return;
     }
 
-    let entity = matches.value_of("ENTITY").unwrap();
+    let mut entity = matches.value_of("ENTITY").unwrap().to_string();
+    matches.value_of("question").map(|q| entity.push_str(q));
     let config_file = matches.value_of("config").unwrap();
     let config = get_config(config_file, entity.to_string()).unwrap_or_else(|e| {
         eprintln!("bad config: {}", e);
