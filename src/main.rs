@@ -65,25 +65,39 @@ fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time
     return days.map(|ds| period.map_or(0, |p| ds as u32 / p));
 }
 
-fn get_password(prompt: &str, user: &str) -> std::io::Result<String> {
-    let keyring = keyring::Keyring::new("pw", user);
-    keyring.get_password().or_else(|_| {
-        rpassword::prompt_password_stdout(prompt)
-    })
+enum KeyringKind {
+    Password,
 }
 
-fn set_password(user: &str) -> std::result::Result<(), String> {
-    let keyring = keyring::Keyring::new("pw", user);
-    let pass = rpassword::prompt_password_stdout("Password: ");
-    pass.map_err(|e| e.to_string()).and_then(|p| {
-        let result = keyring.set_password(p.as_str());
-        result.map_err(|e| e.to_string())
-    })
+impl KeyringKind {
+    fn as_str<'a>(&self) -> &'a str {
+        match self {
+            &KeyringKind::Password => "pw",
+        }
+    }
 }
 
-fn delete_password(user: &str) -> keyring::Result<()> {
-    let keyring = keyring::Keyring::new("pw", user);
-    keyring.delete_password()
+struct KeyringObject<'a> {
+    k: keyring::Keyring<'a>,
+}
+
+impl<'a> KeyringObject<'a> {
+    fn new(t: KeyringKind, user: &'a str) -> Self {
+        // if only we had refinement types!
+        KeyringObject { k: keyring::Keyring::new(t.as_str(), user) }
+    }
+
+    fn get(&self) -> keyring::Result<String> {
+        self.k.get_password()
+    }
+
+    fn set(&self, data: &str) -> keyring::Result<()> {
+        self.k.set_password(data)
+    }
+
+    fn delete(&self) -> keyring::Result<()> {
+        self.k.delete_password()
+    }
 }
 
 fn copy_to_clipboard(data: &str) -> bool {
@@ -181,13 +195,19 @@ fn main() {
 
     let cur_user = std::env::var("USER").expect("couldn't get current user");
     let user = matches.value_of("user").unwrap_or(cur_user.as_str());
+    let pass_ring = KeyringObject::new(KeyringKind::Password, user);
     if matches.is_present("delete_password") {
-        delete_password(user).expect("couldn't delete keyring password");
+        pass_ring.delete().expect(
+            "couldn't delete keyring password",
+        );
         return;
     }
 
     if matches.is_present("set_password") {
-        set_password(user).expect("couldn't set keyring password");
+        let pass = rpassword::prompt_password_stdout("Password: ").expect("couldn't get password");
+        pass_ring.set(pass.as_str()).expect(
+            "couldn't set keyring password",
+        );
         return;
     }
 
@@ -196,7 +216,11 @@ fn main() {
     } else {
         "Password: "
     };
-    let mut pass = get_password(prompt, user).expect("couldn't get password");
+    let mut pass = pass_ring
+        .get()
+        .or_else(|_| rpassword::prompt_password_stdout(prompt))
+        .expect("couldn't get password");
+
     if matches.is_present("get_password") {
         println!("{}", pass);
         if matches.is_present("clipboard") && !copy_to_clipboard(pass.as_str()) {
