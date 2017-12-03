@@ -44,3 +44,15 @@ done
 
 # test preshared config option
 [ "$(pw zomg -f ./preshared.toml)" = "o+uxxezJBT" ]
+
+
+# Below here we can't test on travis, because it doesn't have secretservice.
+if [ -n "$TRAVIS" ]; then
+    return;
+fi
+
+pw --set-keyring-password
+[ "$(pw --get-keyring-password)" == "asdf" ]
+
+# explicitly use cargo run, so we can be sure to bypass entering the password
+[ "$(cargo run -- zomg)" = "oXU35wO56X" ]
