@@ -21,4 +21,3 @@ horse battery staple"](https://xkcd.com/936/) is only 44.
 
 * use a better hash function for pbkdf2 (sha512?)
 * encrypt the config file, and add an edit mode
-* keyring support for config file

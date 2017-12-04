@@ -6,6 +6,12 @@ function pw() {
     echo asdf | cargo run -- -u pw-test-user -q "$@"
 }
 
+function cleanup() {
+    cargo run -- -u pw-test-user --delete-keyring-password
+    cargo run -- -u pw-test-user --delete-keyring-config
+}
+trap cleanup EXIT HUP INT TERM
+
 set -x
 
 # test -d with a hand computed password
@@ -56,3 +62,11 @@ pw --set-keyring-password
 
 # explicitly use cargo run, so we can be sure to bypass entering the password
 [ "$(cargo run -- zomg)" = "oXU35wO56X" ]
+
+# test that we don't mutliate the config
+pw --set-keyring-config ./keyring.toml
+pw --get-keyring-config ./from_keyring.toml
+[ "$(sha256sum ./keyring.toml | cut -f1 -d" ")" == "$(sha256sum ./from_keyring.toml | cut -f1 -d" ")" ]
+
+# now test that we got the right otp=1 password from the keyring config
+[ "$(pw zomg)" = "Kr54O/5mh7" ]

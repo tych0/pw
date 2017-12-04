@@ -25,12 +25,17 @@ extern crate ring;
 extern crate rpassword;
 #[macro_use]
 extern crate serde_derive;
+extern crate tempfile;
 extern crate time;
 
 use std::collections::HashMap;
-use std::io::Write;
+use std::fs::File;
+use std::io::{Read, Seek, Write};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
+use config::FileFormat;
+use keyring::KeyringError;
 use ring::{digest, pbkdf2};
 
 lazy_static! {
@@ -67,36 +72,63 @@ fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time
 
 enum KeyringKind {
     Password,
+    ConfigFile,
 }
 
 impl KeyringKind {
     fn as_str<'a>(&self) -> &'a str {
         match self {
             &KeyringKind::Password => "pw",
+            &KeyringKind::ConfigFile => "pw-config",
+        }
+    }
+
+    fn validate(&self, data: &str) -> Result<(), String> {
+        match self {
+            &KeyringKind::ConfigFile => {
+                let mut c = config::Config::new();
+                if let Some(e) = c.merge(config::File::from_str(data, FileFormat::Toml))
+                    .err()
+                {
+                    return Err(e.to_string());
+                }
+                c.deserialize::<HashMap<String, Domain>>()
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            }
+            _ => Ok(()),
         }
     }
 }
 
 struct KeyringObject<'a> {
-    k: keyring::Keyring<'a>,
+    t: KeyringKind,
+    user: &'a str,
 }
 
 impl<'a> KeyringObject<'a> {
     fn new(t: KeyringKind, user: &'a str) -> Self {
         // if only we had refinement types!
-        KeyringObject { k: keyring::Keyring::new(t.as_str(), user) }
+        KeyringObject { t: t, user: user }
     }
 
     fn get(&self) -> keyring::Result<String> {
-        self.k.get_password()
+        keyring::Keyring::new(self.t.as_str(), self.user).get_password()
     }
 
-    fn set(&self, data: &str) -> keyring::Result<()> {
-        self.k.set_password(data)
+    fn set(&self, data: &str) -> Result<(), String> {
+        let k = keyring::Keyring::new(self.t.as_str(), self.user);
+        self.t.validate(data).and(k.set_password(data).map_err(
+            |e| e.to_string(),
+        ))
     }
 
     fn delete(&self) -> keyring::Result<()> {
-        self.k.delete_password()
+        let k = keyring::Keyring::new(self.t.as_str(), self.user);
+        match k.delete_password() {
+            Err(KeyringError::NoPasswordFound) => Ok(()),
+            x => x,
+        }
     }
 }
 
@@ -136,22 +168,29 @@ struct Domain {
     preshared: Option<String>,
 }
 
-fn get_config(file: &str, entity: String) -> Result<Domain, config::ConfigError> {
+fn get_config(config_ring: KeyringObject, file: &str, entity: String) -> Result<Domain, String> {
     let mut c = config::Config::new();
-    let err = c.merge(config::File::with_name(file)).err();
-    match err {
-        Some(e @ config::ConfigError::Foreign(_)) => {
-            if file != DEF_CONFIG_PATH.as_str() {
-                eprintln!("{} {}", file, DEF_CONFIG_PATH.as_str());
-                return Err(e);
-            }
-            return Ok(Default::default());
+
+    // First, add in the config from the keyring.
+    if let Ok(s) = config_ring.get() {
+        if file != DEF_CONFIG_PATH.as_str() {
+            return Err("both keyring and config file config specified".to_string());
         }
-        Some(e) => return Err(e),
-        None => (),
+        let source = config::File::from_str(s.as_str(), FileFormat::Toml);
+        if let Some(e) = c.merge(source).err() {
+            return Err(e.to_string());
+        }
+    } else if Path::new(file).is_file() {
+        let source = config::File::with_name(file);
+        if let Some(e) = c.merge(source).err() {
+            return Err(e.to_string());
+        }
+    } else if file == DEF_CONFIG_PATH.as_str() {
+        return Ok(Default::default());
     }
+
     let map = c.deserialize::<HashMap<String, Domain>>();
-    map.map(|m| {
+    map.map_err(|e| e.to_string()).map(|m| {
         m.get(&entity).map(|d| d.clone()).unwrap_or(
             Default::default(),
         )
@@ -163,7 +202,7 @@ fn main() {
         (version: "1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
-        (@arg ENTITY: +required conflicts_with[set_password get_password delete_password]
+        (@arg ENTITY: +required conflicts_with[set_password get_password delete_password set_config edit_config delete_config get_config]
             "The entity to generate the password for")
         (@arg length: -l --length +takes_value
             "The length of the password to be generated")
@@ -191,10 +230,77 @@ fn main() {
             "The config file to use")
         (@arg question: --question +takes_value
             "An optional security question for the domain")
+        (@arg set_config: --("set-keyring-config") +takes_value
+            "Sets the config in the keyring to the specified file")
+        (@arg edit_config: --("edit-keyring-config")
+            "Edit the config in the keyring")
+        (@arg delete_config: --("delete-keyring-config")
+            "Delete the keyring config")
+        (@arg get_config: --("get-keyring-config") +takes_value
+            "Gets the config from the keyring and writes it to the specified file")
     ).get_matches();
 
     let cur_user = std::env::var("USER").expect("couldn't get current user");
     let user = matches.value_of("user").unwrap_or(cur_user.as_str());
+
+    let config_ring = KeyringObject::new(KeyringKind::ConfigFile, user);
+    if matches.is_present("delete_config") {
+        config_ring.delete().expect(
+            "couldn't delete keyring config",
+        );
+        return;
+    }
+
+    if let Some(p) = matches.value_of("set_config") {
+        let mut content = String::from("");
+        File::open(p)
+            .expect("couldn't open file")
+            .read_to_string(&mut content)
+            .expect("couldn't read file");
+        config_ring.set(content.as_str()).expect(
+            "couldn't set keyring config",
+        );
+        return;
+    }
+
+    if matches.is_present("edit_config") {
+        let mut f = tempfile::NamedTempFileOptions::new()
+            .prefix("pw_config")
+            .rand_bytes(5)
+            .create()
+            .expect("couldn't create temp file for editing");
+        let editor = std::env::var("EDITOR").unwrap_or("vi".to_string());
+        let edit = Command::new(editor)
+            .arg(f.path().as_os_str())
+            .status()
+            .map(|e| e.success())
+            .unwrap_or(false);
+        if !edit {
+            eprintln!("edit not successful");
+            std::process::exit(1)
+        }
+        f.as_mut().seek(std::io::SeekFrom::Start(0)).expect(
+            "couldn't seek in tempfile",
+        );
+        let mut content = String::from("");
+        f.read_to_string(&mut content).expect(
+            "couldn't read tempfile",
+        );
+        config_ring.set(content.as_str()).expect(
+            "couldn't set keyring config",
+        );
+        return;
+    }
+
+    if let Some(p) = matches.value_of("get_config") {
+        let content = config_ring.get().expect("couldn't get keyring config");
+        let mut f = File::create(p).expect("couldn't open file for creation");
+        f.write_all(content.as_bytes()).expect(
+            "couldn't write file",
+        );
+        return;
+    }
+
     let pass_ring = KeyringObject::new(KeyringKind::Password, user);
     if matches.is_present("delete_password") {
         pass_ring.delete().expect(
@@ -233,7 +339,7 @@ fn main() {
     let mut entity = matches.value_of("ENTITY").unwrap().to_string();
     matches.value_of("question").map(|q| entity.push_str(q));
     let config_file = matches.value_of("config").unwrap();
-    let config = get_config(config_file, entity.to_string()).unwrap_or_else(|e| {
+    let config = get_config(config_ring, config_file, entity.to_string()).unwrap_or_else(|e| {
         eprintln!("bad config: {}", e);
         std::process::exit(1)
     });
