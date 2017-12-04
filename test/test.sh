@@ -3,7 +3,7 @@
 export RUST_BACKTRACE=1
 
 function pw() {
-    echo asdf | cargo run -- -q "$@"
+    echo asdf | cargo run -- -u pw-test-user -q "$@"
 }
 
 set -x
