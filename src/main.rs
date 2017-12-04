@@ -179,7 +179,7 @@ fn main() {
             "Whether or not to prompt when getting the password from stdin")
         (@arg clipboard: -c --clipboard
             "Copy the password to the clipboard")
-        (@arg user: -u --user
+        (@arg user: -u --user +takes_value
             "User to query the keyring for, if not the current user.")
         (@arg set_password: --("set-keyring-password")
             "Sets the keyring password for use by pw")
