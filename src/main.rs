@@ -364,7 +364,7 @@ fn main() {
 
     config.preshared.map(|p| pass.push_str(p.as_str()));
 
-    let length = value_t!(matches.value_of("length"), u32).unwrap_or(config.length.unwrap_or(10));
+    let length = value_t!(matches.value_of("length"), u32).unwrap_or(config.length.unwrap_or(20));
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(config.otp.unwrap_or(0));
     let period = value_t!(matches.value_of("period"), u32).ok().or(
         config.period,
