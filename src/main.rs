@@ -401,8 +401,11 @@ fn main() {
     };
 
     special.map(|sps| {
-        result = result.get(1..).unwrap().to_string();
-        result.push_str(&get_special(raw, length, sps).to_string())
+        let sp = &get_special(raw, length, sps);
+        let mut r_bytes = result.clone().into_bytes();
+        let offset = get_next_byte(raw, length+1) as usize % length as usize;
+        *r_bytes.get_mut(offset).expect("unreachable") = *sp as u8;
+        result = String::from_utf8_lossy(&mut r_bytes).to_string()
     });
 
     println!("{}", result);
