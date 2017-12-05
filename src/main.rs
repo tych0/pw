@@ -38,6 +38,10 @@ use config::FileFormat;
 use keyring::KeyringError;
 use ring::{digest, pbkdf2};
 
+static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA512;
+const DIGEST_LEN: usize = digest::SHA512_OUTPUT_LEN;
+type RandomBuffer = [u8; DIGEST_LEN];
+
 lazy_static! {
     static ref DEF_CONFIG_PATH: String = {
         let home = std::env::var("HOME").expect("No home directory?");
@@ -45,19 +49,19 @@ lazy_static! {
     };
 }
 
-fn generate(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> String {
-    return base64::encode(&bytes)
+fn generate(bytes: RandomBuffer, length: u32) -> String {
+    return base64::encode(&bytes[..])
         .chars()
         .take(length as usize)
         .collect::<String>();
 }
 
-fn get_next_byte(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32) -> u8 {
+fn get_next_byte(bytes: RandomBuffer, length: u32) -> u8 {
     /* Since we base64 encode stuff, we skip 6 bits (2**6 == 64) per length */
     return bytes[((length as usize * 6) / 8) + 1];
 }
 
-fn get_special(bytes: [u8; digest::SHA256_OUTPUT_LEN], length: u32, special: String) -> char {
+fn get_special(bytes: RandomBuffer, length: u32, special: String) -> char {
 
     /* we reserve the byte after length */
     let offset = get_next_byte(bytes, length) as usize % special.len();
@@ -376,9 +380,9 @@ fn main() {
      * offset, and 10 for the reset offset
      */
     let iterations = 10 * 1000 + otp * 10 + offset * 10;
-    let mut raw: [u8; digest::SHA256_OUTPUT_LEN] = [0u8; digest::SHA256_OUTPUT_LEN];
+    let mut raw: RandomBuffer = [0u8; DIGEST_LEN];
     pbkdf2::derive(
-        &digest::SHA256,
+        DIGEST_ALG,
         iterations,
         entity.as_bytes(),
         pass.as_bytes(),
