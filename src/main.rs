@@ -271,7 +271,7 @@ fn main() {
             e => e.expect("couldn't get keyring config"),
         };
         let mut f = tempfile::NamedTempFileOptions::new()
-            .prefix("pw_config")
+            .prefix("pw_config_")
             .rand_bytes(5)
             .create()
             .expect("couldn't create temp file for editing");
