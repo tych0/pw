@@ -265,11 +265,19 @@ fn main() {
     }
 
     if matches.is_present("edit_config") {
+        let content = match config_ring.get() {
+            Ok(c) => c,
+            Err(KeyringError::NoPasswordFound) => String::new(),
+            e => e.expect("couldn't get keyring config"),
+        };
         let mut f = tempfile::NamedTempFileOptions::new()
             .prefix("pw_config")
             .rand_bytes(5)
             .create()
             .expect("couldn't create temp file for editing");
+        f.as_mut().write_all(content.as_bytes()).expect(
+            "couldn't write tempfile",
+        );
         let editor = std::env::var("EDITOR").unwrap_or("vi".to_string());
         let edit = Command::new(editor)
             .arg(f.path().as_os_str())
