@@ -311,8 +311,13 @@ fn main() {
     }
 
     if matches.is_present("set_password") {
-        let pass = rpassword::prompt_password_stdout("Password: ").expect("couldn't get password");
-        pass_ring.set(pass.as_str()).expect(
+        let pass1 = rpassword::prompt_password_stdout("Password: ").expect("couldn't get password");
+        let pass2 = rpassword::prompt_password_stdout("Password: ").expect("couldn't get password");
+        if pass1 != pass2 {
+            eprintln!("passwords aren't equal!");
+            std::process::exit(1);
+        }
+        pass_ring.set(pass1.as_str()).expect(
             "couldn't set keyring password",
         );
         return;
