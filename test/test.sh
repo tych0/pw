@@ -7,6 +7,9 @@ function pw() {
 }
 
 function cleanup() {
+    if [ -n "$TRAVIS" ]; then
+        return;
+    fi
     cargo run -- -u pw-test-user --delete-keyring-password
     cargo run -- -u pw-test-user --delete-keyring-config
 }
@@ -54,7 +57,7 @@ done
 
 # Below here we can't test on travis, because it doesn't have secretservice.
 if [ -n "$TRAVIS" ]; then
-    return;
+    exit 0
 fi
 
 pw --set-keyring-password
