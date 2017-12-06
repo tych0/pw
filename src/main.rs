@@ -405,7 +405,7 @@ fn main() {
     special.map(|sps| {
         let sp = &get_special(raw, length, sps);
         let mut r_bytes = result.clone().into_bytes();
-        let offset = get_next_byte(raw, length+1) as usize % length as usize;
+        let offset = get_next_byte(raw, length + 1) as usize % length as usize;
         *r_bytes.get_mut(offset).expect("unreachable") = *sp as u8;
         result = String::from_utf8_lossy(&mut r_bytes).to_string()
     });
