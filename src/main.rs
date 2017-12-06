@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-extern crate base64;
+extern crate rust_base58;
 #[macro_use]
 extern crate clap;
 extern crate config;
@@ -34,6 +34,7 @@ use std::io::{Read, Seek, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use rust_base58::ToBase58;
 use config::FileFormat;
 use keyring::KeyringError;
 use ring::{digest, pbkdf2};
@@ -50,7 +51,8 @@ lazy_static! {
 }
 
 fn generate(bytes: RandomBuffer, length: u32) -> String {
-    return base64::encode(&bytes[..])
+    return bytes[..]
+        .to_base58()
         .chars()
         .take(length as usize)
         .collect::<String>();

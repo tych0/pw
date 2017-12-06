@@ -4,7 +4,7 @@ version = "0.0.1"
 authors = ["Tycho Andersen <tycho@tycho.ws>"]
 
 [dependencies]
-base64 = "0.6"
+rust-base58 = "0.0.4"
 clap = "2"
 config = "0.6"
 keyring = "0.5"
