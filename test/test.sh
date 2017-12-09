@@ -20,42 +20,42 @@ trap cleanup EXIT HUP INT TERM
 set -x
 
 # test -d with a hand computed password
-[ "$(pw -r 180 zomg -d 2017-11-22)" = "56FAdSQuVAJEKbZmjJ3E" ]
+[ "$(pw -r 180 zomg -d 2017-11-22)" = "EQxydrykDveWY84ZsWov" ]
 
 # test -r doesn't change too early
 for i in $(seq 1 10); do
-    [ "$(pw -r 10 zomg -d 2010-01-$i)" = "2kKQp5YZhBNqNB6Vfvfv" ]
+    [ "$(pw -r 10 zomg -d 2010-01-$i)" = "FYcayYm291XQtDBEkLKB" ]
 done
-[ "$(pw -r 10 zomg -d 2010-01-11)" = "33zajgdUXdYdxM1Vf8Uw" ]
+[ "$(pw -r 10 zomg -d 2010-01-11)" = "7Z1iqJB7Xz4TBqM4GkpS" ]
 
 # test changing -r changes things
 [ "$(pw -r 10 zomg)" != "$(pw -r 20 zomg)" ]
 
 # test -o
-[ "$(pw zomg)" = "35iLqmvYkvn1XiHx79p8" ]
-[ "$(pw -o 0 zomg)" = "35iLqmvYkvn1XiHx79p8" ]
-[ "$(pw -o 1 zomg)" = "u8iiCCb3jxUuneoUZz74" ]
-[ "$(pw -o 2 zomg)" = "5tkUZg7jmr6WpmG73oa5" ]
+[ "$(pw zomg)" = "giDbm2guRMRq3Koybh4B" ]
+[ "$(pw -o 0 zomg)" = "giDbm2guRMRq3Koybh4B" ]
+[ "$(pw -o 1 zomg)" = "2MDrfpXVhUq3JJRtgjEt" ]
+[ "$(pw -o 2 zomg)" = "y3dkwr7ahiJXifqVxhyy" ]
 
 # test -s
-[ "$(pw zomg -s)" = "3[iLqmvYkvn1XiHx79p8" ]
+[ "$(pw zomg -s)" = "g[Dbm2guRMRq3Koybh4B" ]
 
 # test -l
-[ "$(pw -l 30 zomg)" = "35iLqmvYkvn1XiHx79p8XohdTEvDTQ" ]
+[ "$(pw -l 30 zomg)" = "giDbm2guRMRq3Koybh4BM4MjwsM7hY" ]
 
 # test -l -s
-[ "$(pw zomg -l 30 -s)" = "35iLq]vYkvn1XiHx79p8XohdTEvDTQ" ]
+[ "$(pw zomg -l 30 -s)" = "giDbm]guRMRq3Koybh4BM4MjwsM7hY" ]
 
 # test otp config fallback
-[ "$(pw -f ./test.toml zomg)" = "u8iiCCb3jxUuneoUZz74" ]
-[ "$(pw -f ./test.toml zomg -o 2)" = "5tkUZg7jmr6WpmG73oa5" ]
-[ "$(pw -f ./test.toml this.has.dots.com -o 2)" = "5rmrwAQncLMTGNpcz1Y7" ]
+[ "$(pw -f ./test.toml zomg)" = "2MDrfpXVhUq3JJRtgjEt" ]
+[ "$(pw -f ./test.toml zomg -o 2)" = "y3dkwr7ahiJXifqVxhyy" ]
+[ "$(pw -f ./test.toml this.has.dots.com -o 2)" = "MoAGM265AfzuT5EyoVJZ" ]
 
 # test --question
-[ "$(pw zomg --question "Do you like trees?")" = "4ikXexSJLsWYd3Wu1DYy" ]
+[ "$(pw zomg --question "Do you like trees?")" = "2AiVuhbkDC43FqtkNwXi" ]
 
 # test preshared config option
-[ "$(pw zomg -f ./preshared.toml)" = "4TGjqSEHv1ve9KXJunnb" ]
+[ "$(pw zomg -f ./preshared.toml)" = "Z8MhYSqsZzZXAy1DYJiM" ]
 
 
 # Below here we can't test on travis, because it doesn't have secretservice.
@@ -67,7 +67,7 @@ echo -e "asdf\nasdf" | cargo run -- -q -u pw-test-user --set-keyring-password
 [ "$(pw --get-keyring-password)" == "asdf" ]
 
 # explicitly use cargo run, so we can be sure to bypass entering the password
-[ "$(cargo run -- -u pw-test-user zomg)" = "35iLqmvYkvn1XiHx79p8" ]
+[ "$(cargo run -- -u pw-test-user zomg)" = "giDbm2guRMRq3Koybh4B" ]
 
 # test that we don't mutliate the config
 pw --set-keyring-config ./keyring.toml
@@ -76,4 +76,4 @@ pw --get-keyring-config ./from_keyring.toml
 rm ./from_keyring.toml
 
 # now test that we got the right otp=1 password from the keyring config
-[ "$(pw zomg)" = "u8iiCCb3jxUuneoUZz74" ]
+[ "$(pw zomg)" = "2MDrfpXVhUq3JJRtgjEt" ]
