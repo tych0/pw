@@ -43,6 +43,13 @@ static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA512;
 const DIGEST_LEN: usize = digest::SHA512_OUTPUT_LEN;
 type RandomBuffer = [u8; DIGEST_LEN];
 
+/*
+ * 58^87 < 2^512, i.e. the lowest order 87 characters in the base58 encoded string are all
+ * completely random, whereas the 88th symbol may not be, because not all possible symbols can be
+ * represented since we only have 512 bits of randomness.
+ */
+const MAX_LENGTH: usize = 87;
+
 lazy_static! {
     static ref DEF_CONFIG_PATH: String = {
         let home = std::env::var("HOME").expect("No home directory?");
@@ -54,6 +61,7 @@ fn generate(bytes: RandomBuffer, length: u32) -> String {
     return bytes[..]
         .to_base58()
         .chars()
+        .rev()
         .take(length as usize)
         .collect::<String>();
 }
@@ -203,6 +211,18 @@ fn get_config(config_ring: KeyringObject, file: &str, entity: String) -> Result<
     })
 }
 
+fn length_ok(val: String) -> Result<(), String> {
+    val.parse::<usize>().map_err(|e| e.to_string()).and_then(
+        |x| {
+            if x < MAX_LENGTH {
+                Ok(())
+            } else {
+                Err(format!("length {} is too long", x))
+            }
+        },
+    )
+}
+
 fn main() {
     let matches = clap_app!(pw =>
         (version: "1.0")
@@ -211,7 +231,7 @@ fn main() {
         (@arg ENTITY: +required conflicts_with[set_password get_password
             delete_password set_config edit_config delete_config get_config]
             "The entity to generate the password for")
-        (@arg length: -l --length +takes_value
+        (@arg length: -l --length +takes_value validator(length_ok)
             "The length of the password to be generated")
         (@arg special: -s --special +takes_value min_values(0)
             "Special characters to use, if any")
