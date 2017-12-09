@@ -49,6 +49,7 @@ done
 # test otp config fallback
 [ "$(pw -f ./test.toml zomg)" = "u8iiCCb3jxUuneoUZz74" ]
 [ "$(pw -f ./test.toml zomg -o 2)" = "5tkUZg7jmr6WpmG73oa5" ]
+[ "$(pw -f ./test.toml this.has.dots.com -o 2)" = "5rmrwAQncLMTGNpcz1Y7" ]
 
 # test --question
 [ "$(pw zomg --question "Do you like trees?")" = "4ikXexSJLsWYd3Wu1DYy" ]
