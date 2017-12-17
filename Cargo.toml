@@ -1,6 +1,6 @@
 [package]
 name = "pw"
-version = "0.0.1"
+version = "1.0.0"
 authors = ["Tycho Andersen <tycho@tycho.ws>"]
 license = "Apache-2.0"
 description = "stateless password generation"
