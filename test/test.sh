@@ -20,16 +20,16 @@ trap cleanup EXIT HUP INT TERM
 set -x
 
 # test -d with a hand computed password
-[ "$(pw -r 180 zomg -d 2017-11-22)" = "EQxydrykDveWY84ZsWov" ]
+[ "$(pw -p 180 zomg -d 2017-11-22)" = "EQxydrykDveWY84ZsWov" ]
 
-# test -r doesn't change too early
+# test -p doesn't change too early
 for i in $(seq 1 10); do
-    [ "$(pw -r 10 zomg -d 2010-01-$i)" = "FYcayYm291XQtDBEkLKB" ]
+    [ "$(pw -p 10 zomg -d 2010-01-$i)" = "FYcayYm291XQtDBEkLKB" ]
 done
-[ "$(pw -r 10 zomg -d 2010-01-11)" = "7Z1iqJB7Xz4TBqM4GkpS" ]
+[ "$(pw -p 10 zomg -d 2010-01-11)" = "7Z1iqJB7Xz4TBqM4GkpS" ]
 
-# test changing -r changes things
-[ "$(pw -r 10 zomg)" != "$(pw -r 20 zomg)" ]
+# test changing -p changes things
+[ "$(pw -p 10 zomg)" != "$(pw -p 20 zomg)" ]
 
 # test -o
 [ "$(pw zomg)" = "giDbm2guRMRq3Koybh4B" ]
