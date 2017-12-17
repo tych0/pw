@@ -237,7 +237,7 @@ fn main() {
             "Special characters to use, if any")
         (@arg otp: -o --otp +takes_value
             "The OTP offset to use")
-        (@arg period: -r --reset +takes_value
+        (@arg period: -p --period +takes_value
             "Reset period (in days)")
         (@arg date: -d --date +takes_value requires("period")
             "Date to compute the reset period from (2017-11-22 format)")
