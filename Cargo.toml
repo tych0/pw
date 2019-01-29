@@ -8,7 +8,6 @@ documentation = "https://github.com/tych0/pw"
 homepage = "https://github.com/tych0/pw"
 repository = "https://github.com/tych0/pw"
 readme = "README.md"
-travis-ci = { repository = "tych0/pw" }
 
 [dependencies]
 rust-base58 = "0.0.4"
