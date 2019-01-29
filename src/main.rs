@@ -31,6 +31,7 @@ extern crate time;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
+use std::num::{NonZeroU32};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -401,7 +402,7 @@ fn main() {
      * 10,000 iterations recommended by NIST, plus 10 iterations for each otp
      * offset, and 10 for the reset offset
      */
-    let iterations = 10 * 1000 + otp * 10 + offset * 10;
+    let iterations: NonZeroU32 = NonZeroU32::new(10 * 1000 + otp * 10 + offset * 10).unwrap();
     let mut raw: RandomBuffer = [0u8; DIGEST_LEN];
     pbkdf2::derive(
         DIGEST_ALG,
