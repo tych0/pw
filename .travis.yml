@@ -9,8 +9,11 @@ matrix:
 cache:
     - cargo: true
     - apt: true
+addons:
+    apt:
+        packages:
+            - libdbus-1-dev
 before_script:
-    - sudo apt install -yy libdbus-1-dev
     - which rustfmt || cargo install rustfmt
 script:
     - rustfmt src/* && git diff --quiet
