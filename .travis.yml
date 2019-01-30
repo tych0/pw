@@ -14,7 +14,7 @@ addons:
         packages:
             - libdbus-1-dev
 before_script:
-    - which rustfmt || cargo install rustfmt
+    - rustup component add rustfmt
 script:
     - rustfmt src/* && git diff --quiet
     - cd test && ./test.sh
