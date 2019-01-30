@@ -31,14 +31,14 @@ extern crate time;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek, Write};
-use std::num::{NonZeroU32};
+use std::num::NonZeroU32;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use rust_base58::ToBase58;
 use config::FileFormat;
 use keyring::KeyringError;
 use ring::{digest, pbkdf2};
+use rust_base58::ToBase58;
 
 static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA512;
 const DIGEST_LEN: usize = digest::SHA512_OUTPUT_LEN;
@@ -73,14 +73,14 @@ fn get_next_byte(bytes: RandomBuffer, length: u32) -> u8 {
 }
 
 fn get_special(bytes: RandomBuffer, length: u32, special: String) -> char {
-
     /* we reserve the byte after length */
     let offset = get_next_byte(bytes, length) as usize % special.len();
     return special.chars().nth(offset).unwrap();
 }
 
 fn get_reset_offset(period: Option<u32>, date: Option<&str>) -> Result<u32, time::ParseError> {
-    let days = date.map_or(Ok(time::now()), |d| time::strptime(d, "%Y-%m-%d"))
+    let days = date
+        .map_or(Ok(time::now()), |d| time::strptime(d, "%Y-%m-%d"))
         .map(|d| d.to_timespec().sec / (24 * 60 * 60));
     return days.map(|ds| period.map_or(0, |p| ds as u32 / p));
 }
@@ -102,7 +102,8 @@ impl KeyringKind {
         match self {
             &KeyringKind::ConfigFile => {
                 let mut c = config::Config::new();
-                if let Some(e) = c.merge(config::File::from_str(data, FileFormat::Toml))
+                if let Some(e) = c
+                    .merge(config::File::from_str(data, FileFormat::Toml))
                     .err()
                 {
                     return Err(e.to_string());
@@ -133,9 +134,9 @@ impl<'a> KeyringObject<'a> {
 
     fn set(&self, data: &str) -> Result<(), String> {
         let k = keyring::Keyring::new(self.t.as_str(), self.user);
-        self.t.validate(data).and(k.set_password(data).map_err(
-            |e| e.to_string(),
-        ))
+        self.t
+            .validate(data)
+            .and(k.set_password(data).map_err(|e| e.to_string()))
     }
 
     fn delete(&self) -> keyring::Result<()> {
@@ -206,22 +207,22 @@ fn get_config(config_ring: KeyringObject, file: &str, entity: String) -> Result<
 
     let map = c.deserialize::<HashMap<String, Domain>>();
     map.map_err(|e| e.to_string()).map(|m| {
-        m.get(&entity).map(|d| d.clone()).unwrap_or(
-            Default::default(),
-        )
+        m.get(&entity)
+            .map(|d| d.clone())
+            .unwrap_or(Default::default())
     })
 }
 
 fn length_ok(val: String) -> Result<(), String> {
-    val.parse::<usize>().map_err(|e| e.to_string()).and_then(
-        |x| {
+    val.parse::<usize>()
+        .map_err(|e| e.to_string())
+        .and_then(|x| {
             if x < MAX_LENGTH {
                 Ok(())
             } else {
                 Err(format!("length {} is too long", x))
             }
-        },
-    )
+        })
 }
 
 fn main() {
@@ -266,16 +267,17 @@ fn main() {
             "Delete the keyring config")
         (@arg get_config: --("get-keyring-config") +takes_value
             "Gets the config from the keyring and writes it to the specified file")
-    ).get_matches();
+    )
+    .get_matches();
 
     let cur_user = std::env::var("USER").expect("couldn't get current user");
     let user = matches.value_of("user").unwrap_or(cur_user.as_str());
 
     let config_ring = KeyringObject::new(KeyringKind::ConfigFile, user);
     if matches.is_present("delete_config") {
-        config_ring.delete().expect(
-            "couldn't delete keyring config",
-        );
+        config_ring
+            .delete()
+            .expect("couldn't delete keyring config");
         return;
     }
 
@@ -285,9 +287,9 @@ fn main() {
             .expect("couldn't open file")
             .read_to_string(&mut content)
             .expect("couldn't read file");
-        config_ring.set(content.as_str()).expect(
-            "couldn't set keyring config",
-        );
+        config_ring
+            .set(content.as_str())
+            .expect("couldn't set keyring config");
         return;
     }
 
@@ -302,9 +304,9 @@ fn main() {
             .rand_bytes(5)
             .create()
             .expect("couldn't create temp file for editing");
-        f.as_mut().write_all(content.as_bytes()).expect(
-            "couldn't write tempfile",
-        );
+        f.as_mut()
+            .write_all(content.as_bytes())
+            .expect("couldn't write tempfile");
         let editor = std::env::var("EDITOR").unwrap_or("vi".to_string());
         let edit = Command::new(editor)
             .arg(f.path().as_os_str())
@@ -315,33 +317,31 @@ fn main() {
             eprintln!("edit not successful");
             std::process::exit(1)
         }
-        f.as_mut().seek(std::io::SeekFrom::Start(0)).expect(
-            "couldn't seek in tempfile",
-        );
+        f.as_mut()
+            .seek(std::io::SeekFrom::Start(0))
+            .expect("couldn't seek in tempfile");
         let mut content = String::from("");
-        f.read_to_string(&mut content).expect(
-            "couldn't read tempfile",
-        );
-        config_ring.set(content.as_str()).expect(
-            "couldn't set keyring config",
-        );
+        f.read_to_string(&mut content)
+            .expect("couldn't read tempfile");
+        config_ring
+            .set(content.as_str())
+            .expect("couldn't set keyring config");
         return;
     }
 
     if let Some(p) = matches.value_of("get_config") {
         let content = config_ring.get().expect("couldn't get keyring config");
         let mut f = File::create(p).expect("couldn't open file for creation");
-        f.write_all(content.as_bytes()).expect(
-            "couldn't write file",
-        );
+        f.write_all(content.as_bytes())
+            .expect("couldn't write file");
         return;
     }
 
     let pass_ring = KeyringObject::new(KeyringKind::Password, user);
     if matches.is_present("delete_password") {
-        pass_ring.delete().expect(
-            "couldn't delete keyring password",
-        );
+        pass_ring
+            .delete()
+            .expect("couldn't delete keyring password");
         return;
     }
 
@@ -352,9 +352,9 @@ fn main() {
             eprintln!("passwords aren't equal!");
             std::process::exit(1);
         }
-        pass_ring.set(pass1.as_str()).expect(
-            "couldn't set keyring password",
-        );
+        pass_ring
+            .set(pass1.as_str())
+            .expect("couldn't set keyring password");
         return;
     }
 
@@ -389,9 +389,9 @@ fn main() {
 
     let length = value_t!(matches.value_of("length"), u32).unwrap_or(config.length.unwrap_or(20));
     let otp = value_t!(matches.value_of("otp"), u32).unwrap_or(config.otp.unwrap_or(0));
-    let period = value_t!(matches.value_of("period"), u32).ok().or(
-        config.period,
-    );
+    let period = value_t!(matches.value_of("period"), u32)
+        .ok()
+        .or(config.period);
     let date = matches.value_of("date");
     let offset = get_reset_offset(period, date).unwrap_or_else(|e| {
         eprintln!("bad date: {}", e);
@@ -415,9 +415,9 @@ fn main() {
     let mut result = generate(raw, length);
 
     let special = if matches.is_present("special") {
-        let sps = matches.value_of("special").unwrap_or(
-            "!#$%()*+,-.:;=?@[\\]^_{|}~",
-        );
+        let sps = matches
+            .value_of("special")
+            .unwrap_or("!#$%()*+,-.:;=?@[\\]^_{|}~");
         Some(sps.to_string())
     } else {
         config.special
