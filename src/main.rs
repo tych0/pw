@@ -227,7 +227,7 @@ fn length_ok(val: String) -> Result<(), String> {
 
 fn main() {
     let matches = clap_app!(pw =>
-        (version: "1.0.0")
+        (version: "1.1.0")
         (author: "Tycho Andersen <tycho@tycho.ws>")
         (about: "generates passwords")
         (@arg ENTITY: +required conflicts_with[set_password get_password
