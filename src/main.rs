@@ -179,7 +179,6 @@ struct Domain {
     special: Option<String>,
     otp: Option<u32>,
     period: Option<u32>,
-    user: Option<String>,
     // some optional base64 encoded pre-shared key materieal to add to the user supplied key.
     preshared: Option<String>,
 }
