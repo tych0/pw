@@ -40,7 +40,7 @@ use keyring::KeyringError;
 use ring::{digest, pbkdf2};
 use rust_base58::ToBase58;
 
-static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA512;
+static DIGEST_ALG: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const DIGEST_LEN: usize = digest::SHA512_OUTPUT_LEN;
 type RandomBuffer = [u8; DIGEST_LEN];
 
